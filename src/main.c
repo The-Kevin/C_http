@@ -4,6 +4,9 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netinet/in.h>
+#include <unistd.h>
+#include "http.c"
+
 	
 #define DEBUG 1
 
@@ -19,8 +22,9 @@ void debugLog(const char *msg) { if(DEBUG) printf("%s\n", msg); }
 int main(int argc, char *argv[]){
 	
 	socklen_t addr_size;
-	int sockfd, bindConnection;
+	int sockfd,newSockfd, bindConnection;
 	struct sockaddr_in address, their_addr;
+	const char* response = "HTTP/1.1 200 OK\r\nContent-Length: 12\r\n\r\nHello corno!";
 
 	sockfd = socket(AF_INET,SOCK_STREAM,0);
 
@@ -50,10 +54,12 @@ int main(int argc, char *argv[]){
 
 	
 	addr_size = sizeof(their_addr);
-	if(accept(sockfd, (struct sockaddr * )&their_addr,&addr_size) < 0){
+	newSockfd = accept(sockfd, (struct sockaddr * )&their_addr,&addr_size);
+	if( newSockfd < 0){
 		error("Accept request field failed");
 	}
 	debugLog("The server is accepting the requests in the queue");
+
 
 	close(sockfd);
 	return 0;
