@@ -10,6 +10,7 @@
 #define MAX 80
 #define PORT 80
 #define LIFE 1
+#define MAX_PENDING_CONNECTIONS 5
 
 void error(const char *msg) { perror(msg); exit(1); }
 void debugLog(const char *msg) { if(DEBUG) printf("%s", msg); }
@@ -42,6 +43,10 @@ int main(int argc, char *argv[]){
 	
 	debugLog("The server was bind");
 
+	if(listen(sockfd, MAX_PENDING_CONNECTIONS) != 0){
+		error("Error on listen");
+	}
+	debugLog("The server is listening");
 	
 
 	return 0;
