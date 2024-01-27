@@ -4,6 +4,8 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netinet/in.h>
+	
+	
 
 #define DEBUG 1
 
@@ -13,16 +15,16 @@
 #define MAX_PENDING_CONNECTIONS 5
 
 void error(const char *msg) { perror(msg); exit(1); }
-void debugLog(const char *msg) { if(DEBUG) printf("%s", msg); }
+void debugLog(const char *msg) { if(DEBUG) printf("%s\n", msg); }
 
 
 int main(int argc, char *argv[]){
 	
-	int bindConnection;
-	int sockfd;
-	struct sockaddr_in address;
+	socklen_t addr_size;
+	int sockfd, bindConnection;
+	struct sockaddr_in address, their_addr;
 
-	sockfd = socket(AF_UNSPEC,SOCK_STREAM,0);
+	sockfd = socket(AF_INET,SOCK_STREAM,0);
 
 	if(sockfd == -1) error("Socket creating falied");
 	debugLog("Socket was created");
@@ -47,7 +49,13 @@ int main(int argc, char *argv[]){
 		error("Error on listen");
 	}
 	debugLog("The server is listening");
+
 	
+	addr_size = sizeof(their_addr);
+	if(accept(sockfd, (struct sockaddr * )&their_addr,&addr_size) < 0){
+		error("Accept request field failed");
+	}
+	debugLog("The server is accepting the requests in the queue");
 
 	return 0;
 }
