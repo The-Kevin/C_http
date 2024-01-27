@@ -17,6 +17,7 @@ void debugLog(const char *msg) { if(DEBUG) printf("%s", msg); }
 
 int main(int argc, char *argv[]){
 	
+	int bindConnection;
 	int sockfd;
 	struct sockaddr_in address;
 
@@ -33,10 +34,16 @@ int main(int argc, char *argv[]){
 	address.sin_port = htons(PORT);
 	
 
-
+ 	bindConnection = bind(sockfd,(struct sockaddr *)&address, sizeof(address));
+	
+	if(bindConnection != 0){
+		error("The bind was not established");
+	}
+	
+	debugLog("The server was bind");
 
 	
 
 	return 0;
-
 }
+
