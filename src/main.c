@@ -5,8 +5,6 @@
 #include <sys/types.h>
 #include <netinet/in.h>
 	
-	
-
 #define DEBUG 1
 
 #define MAX 80
@@ -57,6 +55,7 @@ int main(int argc, char *argv[]){
 	}
 	debugLog("The server is accepting the requests in the queue");
 
+	close(sockfd);
 	return 0;
 }
 
