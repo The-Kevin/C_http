@@ -6,6 +6,7 @@
 #include <netinet/in.h>
 #include <unistd.h>
 #include "http.c"
+#include "routes.c"
 
 	
 #define DEBUG 1
@@ -65,9 +66,10 @@ int main(int argc, char *argv[]){
 		struct httpHeaderData* header;
 		buffer = httpRequest(&newSockfd);
 		header = getHttpHeaderData(buffer, sizeof buffer);
-
 		
-		close(newSockfd);
+		routes(header->method, header->uri);
+	
+		//close(newSockfd);
 	}
 
 
