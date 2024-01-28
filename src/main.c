@@ -25,6 +25,7 @@ int main(int argc, char *argv[]){
 	socklen_t addr_size;
 	int sockfd,newSockfd, bindConnection;
 	struct sockaddr_in address, their_addr;
+
 	const char* response = "HTTP/1.1 200 OK\r\nContent-Length: 12\r\n\r\nHello corno!";
 
 	sockfd = socket(AF_INET,SOCK_STREAM,0);
