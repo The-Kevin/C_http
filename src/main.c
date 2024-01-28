@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <unistd.h>
+#include <arpa/inet.h>
 #include "http.c"
 #include "routes.c"
 
@@ -13,6 +14,7 @@
 
 #define MAX 80
 #define PORT 80
+#define DATABASE_PORT 3306
 #define LIFE 1
 #define MAX_PENDING_CONNECTIONS 5
 
@@ -23,31 +25,45 @@ void debugLog(const char *msg) { if(DEBUG) printf("%s\n", msg); }
 int main(int argc, char *argv[]){
 	
 	socklen_t addr_size;
-	int sockfd,newSockfd, bindConnection;
-	struct sockaddr_in address, their_addr;
+	int sockfd,newSockfd, bindConnection, sockdatabasefd;
+	struct sockaddr_in address, their_addr, databaseAddress;
 
 	const char* response = "HTTP/1.1 200 OK\r\nContent-Length: 12\r\n\r\nHello corno!";
 
 	sockfd = socket(AF_INET,SOCK_STREAM,0);
+	sockdatabasefd	= socket(AF_INET, SOCK_STREAM, 0);
+
 
 	if(sockfd == -1) error("Socket creating falied");
+	if(sockdatabasefd == -1) error("Socket database creating falied");
+
 	debugLog("Socket was created");
 	
 	bzero(&address, sizeof(address));
-	
+	bzero(&databaseAddress, sizeof(databaseAddress));
 	
 	address.sin_family = AF_UNSPEC; //whatever, IPV4 or IPV6
 	address.sin_addr.s_addr = htonl(INADDR_ANY);
-	address.sin_port = htons(PORT);
+	address.sin_port = htons(PORT);	
 	
 
+	//database connection
+	inet_pton(AF_INET, "127.0.0.1", &(databaseAddress.sin_addr));
+	databaseAddress.sin_family = AF_UNSPEC;
+	databaseAddress.sin_port = htons(DATABASE_PORT);
+
  	bindConnection = bind(sockfd,(struct sockaddr *)&address, sizeof(address));
+	
 	
 	if(bindConnection != 0){
 		error("The bind was not established");
 	}
+
+	if(connect(sockdatabasefd, (struct sockaddr *)&databaseAddress, sizeof(databaseAddress)) != 0 ){
+		error("Error: cannot connect in the database socket"); 
+	}
 	
-	debugLog("The server was bind");
+	debugLog("The server was bind and the database is connected in the socket");
 
 	if(listen(sockfd, MAX_PENDING_CONNECTIONS) != 0){
 		error("Error on listen");
