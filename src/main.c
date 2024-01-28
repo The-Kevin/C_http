@@ -59,6 +59,16 @@ int main(int argc, char *argv[]){
 		error("Accept request field failed");
 	}
 	debugLog("The server is accepting the requests in the queue");
+	
+	for(;;){
+		char* buffer;
+		struct httpHeaderData* header;
+		buffer = httpRequest(&newSockfd);
+		header = getHttpHeaderData(buffer, sizeof buffer);
+
+		
+		close(newSockfd);
+	}
 
 
 	close(sockfd);
