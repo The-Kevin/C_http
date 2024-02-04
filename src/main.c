@@ -18,6 +18,9 @@
 #define LIFE 1
 #define MAX_PENDING_CONNECTIONS 5
 
+// 16MB
+#define MYSQL_PACKET_SIZE 16777216 
+
 void error(const char *msg) { perror(msg); exit(1); }
 void debugLog(const char *msg) { if(DEBUG) printf("%s\n", msg); }
 
@@ -48,7 +51,7 @@ int main(int argc, char *argv[]){
 	
 
 	//database connection
-	inet_pton(AF_INET, "127.0.0.1", &(databaseAddress.sin_addr));
+	inet_pton(AF_INET, "0.0.0.0", &(databaseAddress.sin_addr));
 	databaseAddress.sin_family = AF_UNSPEC;
 	databaseAddress.sin_port = htons(DATABASE_PORT);
 
@@ -65,6 +68,18 @@ int main(int argc, char *argv[]){
 	
 	debugLog("The server was bind and the database is connected in the socket");
 
+	char databaseBuff[1024];
+	int databaseBuffSize = recv(sockdatabasefd, databaseBuff, sizeof(databaseBuff), 0);
+
+	if(databaseBuffSize <0){
+		error("database not connect");
+	}
+
+	for(int i = 0; i < databaseBuffSize; i++){
+		if( i > 0) printf(":");
+		printf("%02X", (unsigned int)databaseBuff[i]);  
+	}
+	
 	if(listen(sockfd, MAX_PENDING_CONNECTIONS) != 0){
 		error("Error on listen");
 	}
@@ -72,7 +87,7 @@ int main(int argc, char *argv[]){
 
 	
 	addr_size = sizeof(their_addr);
-	newSockfd = accept(sockfd, (struct sockaddr * )&their_addr,&addr_size);
+	newSockfd = accept(sockfd, (struct sockaddr *)&their_addr,&addr_size);
 	if( newSockfd < 0){
 		error("Accept request field failed");
 	}
