@@ -8,6 +8,7 @@
 #include <arpa/inet.h>
 #include "http.c"
 #include "routes.c"
+#include "database.c"
 
 	
 #define DEBUG 1
@@ -55,29 +56,15 @@ int main(int argc, char *argv[]){
 	databaseAddress.sin_family = AF_UNSPEC;
 	databaseAddress.sin_port = htons(DATABASE_PORT);
 
+
+	databaseConnect(sockdatabasefd, (struct sockaddr *)&databaseAddress, sizeof(databaseAddress));
+	debugLog("The database is connected in the socket");
+
  	bindConnection = bind(sockfd,(struct sockaddr *)&address, sizeof(address));
 	
 	
 	if(bindConnection != 0){
 		error("The bind was not established");
-	}
-
-	if(connect(sockdatabasefd, (struct sockaddr *)&databaseAddress, sizeof(databaseAddress)) != 0 ){
-		error("Error: cannot connect in the database socket"); 
-	}
-	
-	debugLog("The server was bind and the database is connected in the socket");
-
-	char databaseBuff[1024];
-	int databaseBuffSize = recv(sockdatabasefd, databaseBuff, sizeof(databaseBuff), 0);
-
-	if(databaseBuffSize <0){
-		error("database not connect");
-	}
-
-	for(int i = 0; i < databaseBuffSize; i++){
-		if( i > 0) printf(":");
-		printf("%02X", (unsigned int)databaseBuff[i]);  
 	}
 	
 	if(listen(sockfd, MAX_PENDING_CONNECTIONS) != 0){
