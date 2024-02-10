@@ -5,8 +5,15 @@ void addDataToBuffer(char* buffer, char* data, size_t dataSize, size_t* offset){
 	*offset += dataSize;
 }
 
-void handshakeResponse41(void){
-	int bufferSize = 1024 * 1024; //1MB
+void mysqlEncapsulate(char* buffer, int sequenceId){
+	int payloadLength = sizeof(*buffer) + 1; 
+	int header = (payloadLength << 8) | sequenceId;
+	memcpy(buffer, &header, sizeof(int));
+	printf("%d bytes encapsulados!\n", payloadLength);
+}
+
+char* handshakeResponse41(void){
+	int bufferSize = 63; 
 	size_t offset = 0;
 
 	char* buffer = (char*)malloc(bufferSize); 
@@ -22,16 +29,27 @@ void handshakeResponse41(void){
 	char clientCapabilitiesArray[sizeof(uint32_t)];
 	memcpy(clientCapabilitiesArray, &clientCapabilities, sizeof(uint32_t));
 
-	addDataToBuffer(buffer, &clientCapabilitiesArray,sizeof(uint32_t), &offset);
+	addDataToBuffer(buffer, clientCapabilitiesArray,sizeof(uint32_t), &offset);
 
 	//max_packet_size
 	uint32_t maxPackageSize = 0x01000000; //quase...16MB
 	char maxPackageSizeArray[sizeof(uint32_t)];
 	memcpy(maxPackageSizeArray, &maxPackageSize, sizeof(uint32_t));
-	addDataToBuffer(buffer, &maxPackageSizeArray,sizeof(uint32_t), &offset);
+	addDataToBuffer(buffer, maxPackageSizeArray,sizeof(uint32_t), &offset);
 
+	//character_set
+	char characterSet = 0xff;
+	addDataToBuffer(buffer,&characterSet,sizeof(characterSet), &offset);
+
+	//filler (???? wtf, nao faco ideia do pq disso, tem cara de gambiarra)
+	char filler[23] = {0};
+	addDataToBuffer(buffer,&filler,sizeof(filler), &offset);
+
+	//username
+	char* username = "http";
+	addDataToBuffer(buffer,username,strlen(username) * 8, &offset);
 	
-	
+	return buffer;
 }
 
 void databaseConnect(int sockfd, struct sockaddr* address, int addressSize){
@@ -48,13 +66,22 @@ void databaseConnect(int sockfd, struct sockaddr* address, int addressSize){
 		error("database not connect");
 	}
 
-/*	for(int i = 0; i < bufferSize; i++){
+	char* test = "kevin almeida";
+
+	mysqlEncapsulate(test, 2);
+
+	for(int i = 0; i < 11; i++){
 		if( i > 0) printf(":");
-		printf("%04X", (unsigned int)buffer[i]);  
+		printf("%08X", (unsigned int)test[i]);  
 	}
 		printf("\n");
-*/
-	handshakeResponse41();
+
+
+//	char* handshake = handshakeResponse41();
+//
+//	mysqlEncapsulate(handshake, 2);
+//	send(sockfd,handshake,63, 0);
+
 
 	free(buffer);
 }
