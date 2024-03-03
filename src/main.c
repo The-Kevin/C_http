@@ -37,7 +37,6 @@ int main(int argc, char *argv[]){
 	sockfd = socket(AF_INET,SOCK_STREAM,0);
 	sockdatabasefd	= socket(AF_INET, SOCK_STREAM, 0);
 
-
 	if(sockfd == -1) error("Socket creating falied");
 	if(sockdatabasefd == -1) error("Socket database creating falied");
 
@@ -56,8 +55,8 @@ int main(int argc, char *argv[]){
 	databaseAddress.sin_family = AF_UNSPEC;
 	databaseAddress.sin_port = htons(DATABASE_PORT);
 
-
-	databaseConnect(sockdatabasefd, (struct sockaddr *)&databaseAddress, sizeof(databaseAddress));
+  printf("Prepare to connect in database"); 
+	databaseConnect(&sockdatabasefd, (struct sockaddr *)&databaseAddress, sizeof(databaseAddress));
 	debugLog("The database is connected in the socket");
 
  	bindConnection = bind(sockfd,(struct sockaddr *)&address, sizeof(address));
@@ -71,7 +70,6 @@ int main(int argc, char *argv[]){
 		error("Error on listen");
 	}
 	debugLog("The server is listening");
-
 	
 	addr_size = sizeof(their_addr);
 	newSockfd = accept(sockfd, (struct sockaddr *)&their_addr,&addr_size);
