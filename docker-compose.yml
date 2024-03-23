@@ -10,5 +10,6 @@ services:
       - oxente:/etc
     environment:
       MYSQL_ROOT_PASSWORD: pass
+      MYSQL_DATABASE: http
 volumes:
   oxente:

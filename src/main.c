@@ -1,96 +1,109 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <sys/socket.h>
-#include <sys/types.h>
 #include <netinet/in.h>
-#include <unistd.h>
 #include <arpa/inet.h>
-#include "http.c"
-#include "routes.c"
-#include "database.c"
-
-	
-#define DEBUG 1
-
-#define MAX 80
-#define PORT 80
-#define DATABASE_PORT 3306
-#define LIFE 1
-#define MAX_PENDING_CONNECTIONS 5
-
-// 16MB
-#define MYSQL_PACKET_SIZE 16777216 
-
-void error(const char *msg) { perror(msg); exit(1); }
-void debugLog(const char *msg) { if(DEBUG) printf("%s\n", msg); }
+#include <errno.h>
+#include <string.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 
-int main(int argc, char *argv[]){
-	
-	socklen_t addr_size;
-	int sockfd,newSockfd, bindConnection, sockdatabasefd;
-	struct sockaddr_in address, their_addr, databaseAddress;
+/*https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_connection_phase_packets_protocol_handshake_response.html*/
 
-	const char* response = "HTTP/1.1 200 OK\r\nContent-Length: 12\r\n\r\nHello corno!";
+struct HandshakeResponse41 {
+    uint32_t client_flag;
+    uint32_t max_packet_size;
+    uint8_t  character_set;
+    char     filler[23];
+    char     username[5]; // always root
+    uint8_t  auth_response_length;
+    char     auth_response[40];
+    char     database[5];   
+};
 
-	sockfd = socket(AF_INET,SOCK_STREAM,0);
-	sockdatabasefd	= socket(AF_INET, SOCK_STREAM, 0);
+void connectDatabase(int sockFd, struct sockaddr_in* addr, socklen_t addrLen){
 
-	if(sockfd == -1) error("Socket creating falied");
-	if(sockdatabasefd == -1) error("Socket database creating falied");
+    addr->sin_addr.s_addr = inet_addr("127.0.0.1");
+    addr->sin_port = htons(3306); //mysql port
+    addr->sin_family = AF_INET;
 
-	debugLog("Socket was created");
-	
-	bzero(&address, sizeof(address));
-	bzero(&databaseAddress, sizeof(databaseAddress));
-	
-	address.sin_family = AF_UNSPEC; //whatever, IPV4 or IPV6
-	address.sin_addr.s_addr = htonl(INADDR_ANY);
-	address.sin_port = htons(PORT);	
-	
+    if(connect(sockFd, (const struct sockaddr*)addr, addrLen) == -1){
+        printf("Error to connect in database: %s",strerror(errno));
+        exit(EXIT_FAILURE);
+    }
 
-	//database connection
-	inet_pton(AF_INET, "0.0.0.0", &(databaseAddress.sin_addr));
-	databaseAddress.sin_family = AF_UNSPEC;
-	databaseAddress.sin_port = htons(DATABASE_PORT);
+    // Mysql handshake
+    struct HandshakeResponse41 handshakePacket;
+    char filler[23] = {0};
+    char sha1Auth[40] = "9d4e1e23bd5b727046a9e3b4b7db57bd8d6ee684";
+    char databaseName[5] = "http";
+    int s;
+    uint32_t capacibilities = 
+          0x00000001 //CLIENT_CONNECT_WITH_DB
+        | 0x00080000; //CLIENT_PLUGIN_AUTH
+    
 
-  printf("Prepare to connect in database"); 
-	databaseConnect(&sockdatabasefd, (struct sockaddr *)&databaseAddress, sizeof(databaseAddress));
-	debugLog("The database is connected in the socket");
-
- 	bindConnection = bind(sockfd,(struct sockaddr *)&address, sizeof(address));
-	
-	
-	if(bindConnection != 0){
-		error("The bind was not established");
-	}
-	
-	if(listen(sockfd, MAX_PENDING_CONNECTIONS) != 0){
-		error("Error on listen");
-	}
-	debugLog("The server is listening");
-	
-	addr_size = sizeof(their_addr);
-	newSockfd = accept(sockfd, (struct sockaddr *)&their_addr,&addr_size);
-	if( newSockfd < 0){
-		error("Accept request field failed");
-	}
-	debugLog("The server is accepting the requests in the queue");
-	
-	for(;;){
-		char* buffer;
-		struct httpHeaderData* header;
-		buffer = httpRequest(&newSockfd);
-		header = getHttpHeaderData(buffer, sizeof buffer);
-		
-		routes(header->method, header->uri);
-	
-		//close(newSockfd);
-	}
+    handshakePacket.client_flag = htonl(capacibilities);
+    handshakePacket.max_packet_size = htonl(0xFFFFFF);
+    handshakePacket.character_set = htons(0x21); // utf8mb3_general_ci
+    memcpy(handshakePacket.filler, filler, sizeof(filler));
+    memcpy(handshakePacket.username, "root",5);
+    handshakePacket.auth_response_length = htons(40);
+    memcpy(handshakePacket.auth_response, sha1Auth, 40);
+    memcpy(handshakePacket.database, databaseName, 5);
 
 
-	close(sockfd);
-	return 0;
+ //    s = send(sockFd,&handshakePacket, sizeof(struct HandshakeResponse41),0);
+ //    if(s == -1){
+ //        printf("Error to send handshake to database: %s",strerror(errno));
+ //        exit(EXIT_FAILURE);
+ //    }
+
 }
 
+int main(void){
+
+    int mainFd, databaseFd;
+    struct sockaddr_in mainAddr, databaseAddr; 
+
+    mainFd = socket(AF_INET, SOCK_STREAM, 0);
+    databaseFd = socket(AF_INET, SOCK_STREAM, 0);
+
+    if(mainFd == -1 || databaseFd == -1){
+        printf("Error in set socket in filedescriptor: %s",strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+
+    connectDatabase(databaseFd, &databaseAddr, sizeof(databaseAddr));
+
+    mainAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    mainAddr.sin_family = AF_INET;
+    mainAddr.sin_port = htons(80); // http
+
+    if(bind(mainFd, (const struct sockaddr*)&mainAddr,sizeof(mainAddr)) == -1){
+        printf("error to bind the fd in the port: %s", strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+
+
+    if(listen(mainFd, 3) == -1){
+        printf("Error listening on socket: %s\n", strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+
+    for(;;){
+        struct sockaddr_in clientAddr; 
+        socklen_t clientAddrLen = sizeof(clientAddr);
+
+        int clientFd = accept(mainFd, (struct sockaddr*)&clientAddr, &clientAddrLen);
+        if(clientFd == -1){
+            printf("error to accept: %s",strerror(errno));
+            exit(EXIT_FAILURE);
+        }
+
+        close(clientFd);
+    }
+
+    return 0;
+}
